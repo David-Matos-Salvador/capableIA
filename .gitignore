@@ -1,0 +1,40 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno y secretos (¡NUNCA subir a Git!)
+.env
+google-key.json
+google-key.json.pub
+
+# Sesión de WhatsApp (Archivos locales para mantener la sesión iniciada)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Persistencia de Datos Locales (Historial y Configuración)
+initialized_groups.json
+group_history.json
+group_summaries.json
+
+# Logs y Errores
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Archivos del Sistema Operativo
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Configuración de editores
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos Temporales de Gemini CLI
+.gemini/tmp/
+
+*.json
