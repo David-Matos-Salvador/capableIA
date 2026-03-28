@@ -23,12 +23,12 @@ class OpenAIService {
                 type: "function",
                 function: {
                     name: "guardar_lore",
-                    description: "Guarda información importante sobre un integrante del grupo (gustos, anécdotas, datos clave).",
+                    description: "Guarda información importante sobre un integrante del grupo.",
                     parameters: {
                         type: "object",
                         properties: {
-                            dato: { type: "string", description: "La información relevante a guardar de forma clara y concisa." },
-                            integrante: { type: "string", description: "Nombre o apodo del integrante." }
+                            dato: { type: "string", description: "Dato relevante." },
+                            integrante: { type: "string", description: "Nombre del integrante." }
                         },
                         required: ["dato", "integrante"]
                     }
@@ -38,11 +38,11 @@ class OpenAIService {
                 type: "function",
                 function: {
                     name: "evolucionar_identidad",
-                    description: "Permite que el bot anote un cambio en su propia personalidad, una lección aprendida o un ajuste en su comportamiento basado en la charla actual.",
+                    description: "Anota un cambio en tu propia personalidad o comportamiento.",
                     parameters: {
                         type: "object",
                         properties: {
-                            leccion: { type: "string", description: "Descripción del cambio o lección sobre sí mismo." }
+                            leccion: { type: "string", description: "Lección aprendida sobre ti mismo." }
                         },
                         required: ["leccion"]
                     }
@@ -63,42 +63,40 @@ class OpenAIService {
                 });
             }
 
-            // Inyectamos: Personalidad Base + Lore del Grupo + Su propia Evolución
             const systemContent = `
-                ${personality.instructions}
-                
-                TU IDENTIDAD ACTUALIZADA (LECCIONES SOBRE TI MISMO):
-                ${selfIdentity || "Aún no has tenido evoluciones significativas."}
+${personality.instructions}
 
-                MEMORIA SEMÁNTICA DEL GRUPO (LORE):
-                ${loreContext || "No hay lore relevante."}
+REGLA CRÍTICA: Si el usuario te pide una imagen o dibujo, DEBES llamar a la función 'generar_imagen' inmediatamente. No des explicaciones de que lo vas a hacer, solo ejecuta la función.
+
+TU IDENTIDAD ACTUALIZADA:
+${selfIdentity || "Aún no has evolucionado."}
+
+MEMORIA DEL GRUPO:
+${loreContext || "No hay lore."}
             `.trim();
 
-            const messages = [
-                { role: 'system', content: systemContent },
-                { role: 'user', content: userContent }
-            ];
-            
             const response = await this.client.chat.completions.create({
                 model: 'gpt-4o',
-                messages: messages,
+                messages: [
+                    { role: 'system', content: systemContent },
+                    { role: 'user', content: userContent }
+                ],
                 tools: this.tools,
                 tool_choice: "auto",
-                temperature: 0.8,
-                max_tokens: 500
+                temperature: 0.8
             });
 
             const choice = response.choices[0];
-            const toolCalls = choice.message.tool_calls;
+            const toolCall = choice.message.tool_calls?.[0];
 
             return {
                 candidates: [{
                     content: {
                         parts: [{
                             text: choice.message.content,
-                            functionCall: toolCalls ? {
-                                name: toolCalls[0].function.name,
-                                args: JSON.parse(toolCalls[0].function.arguments)
+                            functionCall: toolCall ? {
+                                name: toolCall.function.name,
+                                args: JSON.parse(toolCall.function.arguments)
                             } : null
                         }]
                     }

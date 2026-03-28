@@ -8,10 +8,8 @@ class VectorService {
         this.indexName = process.env.PINECONE_INDEX || 'capableia-lore';
     }
 
-    /**
-     * Convierte un texto en un vector numérico (Embedding)
-     */
     async _getEmbedding(text) {
+        if (!text) throw new Error("Texto vacío para embedding");
         const response = await this.openai.embeddings.create({
             model: "text-embedding-3-small",
             input: text,
@@ -20,24 +18,27 @@ class VectorService {
         return response.data[0].embedding;
     }
 
-    /**
-     * Guarda un dato importante (Lore) en Pinecone
-     */
     async upsertLore(id, text, metadata = {}) {
         try {
-            console.log(`🌲 [VectorService] Guardando lore en Pinecone: ${text.substring(0, 50)}...`);
+            console.log(`🌲 [VectorService] Procesando: ${text.substring(0, 30)}...`);
             const embedding = await this._getEmbedding(text);
             const index = this.pc.index(this.indexName);
             
-            await index.upsert([{
-                id: id || Date.now().toString(),
+            const cleanMetadata = {
+                content: String(text),
+                timestamp: Number(Date.now()),
+                type: String(metadata.type || 'lore')
+            };
+
+            const record = {
+                id: String(id || `lore-${Date.now()}`),
                 values: embedding,
-                metadata: {
-                    content: text,
-                    timestamp: Date.now(),
-                    ...metadata
-                }
-            }]);
+                metadata: cleanMetadata
+            };
+
+            // SINTAXIS GANADORA: { records: [record] }
+            await index.upsert({ records: [record] });
+            
             return true;
         } catch (error) {
             console.error("❌ [VectorService] Error en upsertLore:", error.message);
@@ -45,12 +46,8 @@ class VectorService {
         }
     }
 
-    /**
-     * Busca los fragmentos de lore más relevantes para un mensaje actual
-     */
     async queryLore(queryText, topK = 3) {
         try {
-            console.log(`🌲 [VectorService] Buscando lore relevante para: "${queryText.substring(0, 30)}..."`);
             const embedding = await this._getEmbedding(queryText);
             const index = this.pc.index(this.indexName);
 
@@ -60,13 +57,14 @@ class VectorService {
                 includeMetadata: true
             });
 
-            // Extraemos los contenidos del metadata
+            if (!queryResponse.matches || queryResponse.matches.length === 0) return "";
+
             return queryResponse.matches
-                .filter(match => match.score > 0.3) // Filtro de relevancia mínima
+                .filter(match => match.score > 0.3)
                 .map(match => match.metadata.content)
                 .join('\n---\n');
         } catch (error) {
-            console.warn("⚠️ [VectorService] No se pudo consultar lore (¿Index listo?):", error.message);
+            console.warn("⚠️ [VectorService] Error en consulta:", error.message);
             return "";
         }
     }
