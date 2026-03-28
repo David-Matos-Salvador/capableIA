@@ -1,5 +1,6 @@
 const { MessageMedia } = require('whatsapp-web.js');
 const persistence = require('../services/PersistenceService');
+const vector = require('../services/VectorService');
 
 const INIT_PHRASE = 'init ia';
 const MAX_HISTORY_LIMIT = 200;
@@ -11,89 +12,88 @@ class MessageHandler {
         this.initializedGroups = persistence.load('groups');
         this.groupHistory = persistence.load('history');
         this.groupSummaries = persistence.load('summaries');
-        console.log('📦 [MessageHandler] Inicializado. Grupos registrados:', this.initializedGroups.size);
+        console.log('📦 [MessageHandler] Inicializado con identidad evolutiva.');
     }
 
     async handle(msg, whatsapp) {
-        console.log(`🔍 [MessageHandler] handle() llamado. Mensaje: "${msg.body}"`);
         try {
-            if (msg.from === 'status@broadcast') {
-                console.log('👻 [MessageHandler] Ignorado: Es un estado de WhatsApp.');
-                return;
-            }
+            if (msg.from === 'status@broadcast') return;
 
             const chat = await msg.getChat();
             const contact = await msg.getContact();
-            const mentions = await msg.getMentions()
             const chatId = chat.id._serialized;
 
-            console.log(`🔍 [MessageHandler] Chat ID: ${chatId}, ¿Es grupo?: ${chat.isGroup}`);
-            if (!chat.isGroup) {
-                console.log('⚠️ [MessageHandler] Ignorado: No es grupo.');
-                return;
-            }
+            if (!chat.isGroup) return;
 
             const info = whatsapp.info;
             const botNumber = info.wid.user;
+            const mentions = await msg.getMentions();
 
-            const isMentionedOfficially = mentions.some(contact =>
-                contact.id._serialized === info.wid._serialized
-            );
-
+            const isMentionedOfficially = mentions.some(c => c.id._serialized === info.wid._serialized);
             const isMentionedInText = msg.body.includes(botNumber);
-            console.log(`🔔 [MessageHandler] ¿Mencionado?: ${isMentionedOfficially || isMentionedInText}`);
+            const isReplyToMe = msg.hasQuotedMsg ? (await msg.getQuotedMessage()).fromMe : false;
 
-            const bodyLower = msg.body.toLowerCase();
-            if (bodyLower.includes(INIT_PHRASE)) {
-                console.log('🚀 [MessageHandler] Comando init detectado.');
+            if (msg.body.toLowerCase().includes(INIT_PHRASE)) {
                 return this._initializeGroup(chatId, msg, whatsapp);
             }
 
-            const isReplyToMe = msg.hasQuotedMsg ? (await msg.getQuotedMessage()).fromMe : false;
-            console.log(`💬 [MessageHandler] ¿Respuesta al bot?: ${isReplyToMe}`);
-
             if (this.initializedGroups.has(chatId)) {
                 this._recordMessage(chatId, contact, msg.body);
-
                 if (isMentionedOfficially || isMentionedInText || isReplyToMe) {
-                    console.log('🤖 [MessageHandler] Condición cumplida. Llamando a _respond...');
                     await this._respond(chat, msg, chatId, whatsapp);
-                } else {
-                    console.log('💤 [MessageHandler] Grupo inicializado pero sin mención directa.');
                 }
-            } else {
-                console.log('ℹ️ [MessageHandler] Grupo no inicializado.');
             }
-
         } catch (error) {
             console.error('❌ [MessageHandler] Error en handle:', error);
         }
     }
 
     _recordMessage(chatId, contact, content) {
-        console.log(`💾 [MessageHandler] Guardando mensaje de ${contact.pushname}`);
         if (!this.groupHistory[chatId]) this.groupHistory[chatId] = [];
         this.groupHistory[chatId].push({ role: contact.pushname || contact.number, content: content, timestamp: Date.now() });
-        
-        // Mantener solo los últimos 200 mensajes
-        if (this.groupHistory[chatId].length > MAX_HISTORY_LIMIT) {
-            this.groupHistory[chatId].shift();
+        if (this.groupHistory[chatId].length >= MAX_HISTORY_LIMIT) {
+            this._summarizeAndExtractLore(chatId);
         }
-        
         persistence.save('history', this.groupHistory);
+    }
+
+    async _summarizeAndExtractLore(chatId) {
+        console.log(`🧠 [MessageHandler] Procesando resumen y lore automático...`);
+        const history = this.groupHistory[chatId];
+        const historyText = history.map(m => `${m.role}: ${m.content}`).join('\n');
+
+        const prompt = `Analiza estos mensajes y extrae Lore sobre los integrantes en JSON: {"resumen": "...", "lore": [{"integrante": "...", "dato": "..."}]}. Historial:\n${historyText}`;
+
+        try {
+            const result = await this.ai.getResponse(prompt);
+            const textResponse = result.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+            const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const data = JSON.parse(jsonMatch[0]);
+                if (data.resumen) {
+                    this.groupSummaries[chatId] = data.resumen;
+                    persistence.save('summaries', this.groupSummaries);
+                }
+                if (data.lore) {
+                    for (const item of data.lore) {
+                        await vector.upsertLore(null, `${item.integrante}: ${item.dato}`, { type: 'auto-lore' });
+                    }
+                }
+            }
+            this.groupHistory[chatId] = this.groupHistory[chatId].slice(-15);
+            persistence.save('history', this.groupHistory);
+        } catch (e) { console.error("Error en resumen automático:", e.message); }
     }
 
     async _initializeGroup(chatId, msg, whatsapp) {
         if (!this.initializedGroups.has(chatId)) {
             this.initializedGroups.add(chatId);
             persistence.save('groups', this.initializedGroups);
-            await whatsapp.sendText(chatId, '✅ Bot CapableIA activado.');
-            console.log(`✅ [MessageHandler] Grupo ${chatId} inicializado.`);
+            await whatsapp.sendText(chatId, '✅ Bot CapableIA activado con Identidad Evolutiva.');
         }
     }
 
     async _respond(chat, msg, chatId, whatsapp) {
-        console.log('🤖 [MessageHandler] Entrando en _respond...');
         try {
             await chat.sendStateTyping();
 
@@ -101,66 +101,61 @@ class MessageHandler {
             let quotedContext = "";
             let mediaInput = null;
 
-            // 1. Detectar si el usuario cita un mensaje
             if (msg.hasQuotedMsg) {
-                const quotedMsg = await msg.getQuotedMessage();
-                quotedContext = `MENSAJE CITADO: "${quotedMsg.body}"`;
-                
-                // Si el mensaje citado tiene imagen, la procesamos
-                if (quotedMsg.hasMedia) {
-                    const media = await quotedMsg.downloadMedia();
-                    if (media.mimetype.startsWith('image/')) {
-                        mediaInput = { inlineData: { data: media.data, mimeType: media.mimetype } };
-                        quotedContext += " [EL MENSAJE CITADO CONTIENE UNA IMAGEN]";
-                    }
+                const q = await msg.getQuotedMessage();
+                quotedContext = `MENSAJE CITADO: "${q.body}"`;
+                if (q.hasMedia) {
+                    const m = await q.downloadMedia();
+                    if (m.mimetype.startsWith('image/')) mediaInput = { inlineData: { data: m.data, mimeType: m.mimetype } };
                 }
             }
 
-            // 2. Si el mensaje actual tiene su propia imagen, prevalece
             if (msg.hasMedia) {
-                const media = await msg.downloadMedia();
-                if (media.mimetype.startsWith('image/')) {
-                    mediaInput = { inlineData: { data: media.data, mimeType: media.mimetype } };
-                }
+                const m = await msg.downloadMedia();
+                if (m.mimetype.startsWith('image/')) mediaInput = { inlineData: { data: m.data, mimeType: m.mimetype } };
             }
 
-            const currentSummary = this.groupSummaries[chatId] || "Sin resumen previo.";
+            // 1. CONSULTAR LORE DEL GRUPO + SU PROPIA IDENTIDAD
+            const loreContext = await vector.queryLore(userPrompt);
+            const selfIdentity = await vector.queryLore("¿Quién soy yo? ¿Cómo debo comportarme?", 2); // Busca su evolución
+
+            const currentSummary = this.groupSummaries[chatId] || "";
             const history = this.groupHistory[chatId] || [];
             const recentMessages = history.slice(-15).map(m => `${m.role}: ${m.content}`).join('\n');
 
-            const finalPrompt = `
-CONTEXTO DE LA CONVERSACIÓN:
-${currentSummary}
+            const finalPrompt = `CONTEXTO: ${currentSummary}\nRECIENTE:\n${recentMessages}\n${quotedContext}\nUSUARIO: ${userPrompt}`;
 
-ÚLTIMOS MENSAJES:
-${recentMessages}
-
-${quotedContext}
-
-USUARIO: ${userPrompt}
-
-Instrucción: Usa todo este contexto para responder. Si se pide una imagen, usa generar_imagen.`;
-
-            console.log('📝 [MessageHandler] Prompt enviado a IA con contexto de cita.');
-
-            const result = await this.ai.getResponse(finalPrompt, mediaInput);
-            console.log('📩 [MessageHandler] IA respondió.');
-
+            const result = await this.ai.getResponse(finalPrompt, mediaInput, loreContext, selfIdentity);
+            
             const candidate = result.candidates?.[0];
             const parts = candidate?.content?.parts || [];
-            const functionCall = parts.find(p => p.functionCall);
+            const functionCall = parts.find(p => p.functionCall)?.functionCall;
 
             if (functionCall) {
-                console.log('🎨 [MessageHandler] IA quiere generar imagen.');
-                const imageUrl = await this.imageGenerator.generateImageUrl(functionCall.functionCall.args.prompt);
-                const media = await MessageMedia.fromUrl(imageUrl);
-                await whatsapp.sendImage(chatId, media, `🎨 ${functionCall.functionCall.args.prompt}`);
+                // A: GUARDAR LORE
+                if (functionCall.name === "guardar_lore") {
+                    const { dato, integrante } = functionCall.args;
+                    await vector.upsertLore(null, `${integrante}: ${dato}`, { type: 'lore', author: integrante });
+                    const text = parts.find(p => p.text)?.text;
+                    if (text) await whatsapp.sendText(chatId, text);
+                } 
+                // B: EVOLUCIONAR IDENTIDAD
+                else if (functionCall.name === "evolucionar_identidad") {
+                    const { leccion } = functionCall.args;
+                    await vector.upsertLore(null, `Lección de identidad: ${leccion}`, { type: 'self-identity' });
+                    console.log(`🧠 [Evolución] Yoshi ha aprendido: ${leccion}`);
+                    const text = parts.find(p => p.text)?.text;
+                    if (text) await whatsapp.sendText(chatId, text);
+                }
+                // C: GENERAR IMAGEN
+                else if (functionCall.name === "generar_imagen") {
+                    const imageUrl = await this.imageGenerator.generateImageUrl(functionCall.args.prompt);
+                    const media = await MessageMedia.fromUrl(imageUrl, { unsafeMime: true });
+                    await whatsapp.sendImage(chatId, media, `🎨 ${functionCall.args.prompt}`);
+                }
             } else {
                 const text = parts.find(p => p.text)?.text;
-                if (text) {
-                    console.log('💬 [MessageHandler] Enviando respuesta texto...');
-                    await whatsapp.sendText(chatId, text);
-                }
+                if (text) await whatsapp.sendText(chatId, text);
             }
             await chat.clearState();
         } catch (error) {
