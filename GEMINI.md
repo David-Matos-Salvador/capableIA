@@ -35,6 +35,7 @@ Se ha descentralizado la lógica del `MessageHandler.js` hacia:
 - **Caché Inteligente:** El `IdentityManager` mantiene la identidad en memoria para optimizar velocidad y tokens, refrescándola solo tras una evolución.
 
 ## 📌 Pendientes / Roadmap
+- [ ] **Dockerización:** Crear Dockerfile y docker-compose para garantizar la portabilidad y facilitar el despliegue en cualquier servidor.
 - [ ] **Suite de Tests Automatizados:** Implementar pruebas unitarias e integración (Jest/Mocha) para blindar el código.
 - [ ] Implementar Ranking Semanal Alfa/Beta (Analítica sobre Pinecone).
 - [ ] Integración de Voz (Whisper + ElevenLabs).
