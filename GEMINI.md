@@ -16,20 +16,26 @@ El bot está en una fase de **Memoria Vectorial Evolutiva**. Utiliza OpenAI (GPT
     - `src/services/PersistenceService.js`: Manejo de archivos JSON locales.
     - `src/handlers/MessageHandler.js`: Orquestador de la lógica.
 
-### 2. Sistema de Memoria Híbrido
+### 2. Refactorización de Managers (Patrón Command)
+Se ha descentralizado la lógica del `MessageHandler.js` hacia:
+- `src/managers/IdentityManager.js`: Gestión de la evolución y caché de identidad del bot.
+- `src/managers/LoreManager.js`: Gestión del conocimiento del grupo y extracción asíncrona en segundo plano.
+
+### 3. Sistema de Memoria Híbrido
 - **Capa 1 (Inmediata):** Últimos 15 mensajes en el prompt.
 - **Capa 2 (Cercana):** Archivo `group_history.json` limitado a 200 mensajes.
-- **Capa 3 (Largo Plazo/Lore):** Pinecone (Vectores). Resúmenes automáticos cada 200 mensajes que extraen "lore" de los integrantes.
+- **Capa 3 (Largo Plazo/Lore):** Pinecone (Vectores). Resúmenes automáticos cada 200 mensajes que extraen "lore" de los integrantes de forma asíncrona.
 
-### 3. Personalidad Dinámica (Yoshi Edition)
+### 4. Personalidad Dinámica (Yoshi Edition)
 - Personalidad inyectada vía `.env` (`BOT_INSTRUCTIONS`).
 - Configuración de temperatura (0.8) y max_tokens (500) para un estilo chacotero y directo.
 
-## 🧠 Lógica Evolutiva (En progreso)
-- Implementación de `evolucionar_identidad`: El bot anota cambios en su propia personalidad basándose en la interacción con el grupo.
-- Inyección de identidad: Antes de responder, busca en Pinecone su "yo" más reciente.
+## 🧠 Lógica Evolutiva (Completada)
+- **Auto-Reflexión:** Implementación de la herramienta `evolucionar_identidad`.
+- **Caché Inteligente:** El `IdentityManager` mantiene la identidad en memoria para optimizar velocidad y tokens, refrescándola solo tras una evolución.
 
 ## 📌 Pendientes / Roadmap
+- [ ] **Suite de Tests Automatizados:** Implementar pruebas unitarias e integración (Jest/Mocha) para blindar el código.
 - [ ] Implementar Ranking Semanal Alfa/Beta (Analítica sobre Pinecone).
 - [ ] Integración de Voz (Whisper + ElevenLabs).
 - [ ] Búsqueda Web en tiempo real.
