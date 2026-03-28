@@ -1,57 +1,46 @@
-# CapableIA - WhatsApp Bot con Memoria Inteligente 🤖🚀
+# CapableIA - WhatsApp Bot Evolutivo con Memoria Vectorial 🤖🚀🇵🇪
 
-**CapableIA** es un bot de WhatsApp de nivel profesional construido sobre Node.js, diseñado bajo los principios **SOLID** y utilizando la potencia de **OpenAI (GPT-4o)** para ofrecer una experiencia de conversación contextual, inteligente y multimodal.
+**CapableIA** (Alias: **Yoshi**) es un bot de WhatsApp de nivel profesional diseñado bajo los principios **SOLID**, utilizando la potencia de **OpenAI (GPT-4o)** y **Pinecone** para ofrecer una experiencia de conversación que evoluciona, recuerda y analiza el lore del grupo.
 
 ## 💡 Motivación
 
-Este proyecto nació de la necesidad de superar las limitaciones de las soluciones de IA nativas actuales. **CapableIA** resuelve esto mediante una **arquitectura abierta y escalable**, permitiendo integrar cualquier motor de IA, generador de imágenes o herramienta externa, convirtiéndola en una plataforma mucho más robusta que las opciones estándar.
+Este proyecto nació para superar las limitaciones de las IAs nativas. **CapableIA** no es solo un bot; es una entidad que aprende de los integrantes del grupo, recuerda chismes, gustos y debilidades, y adapta su propia personalidad basándose en la interacción.
 
-## ✨ Características Principales
+## ✨ Características Premium
 
-*   **🧠 Memoria Inteligente:** El bot mantiene un historial local de los últimos 200 mensajes por grupo para ofrecer contexto real en las conversaciones.
-*   **🖼️ Generación de Imágenes:** Integración inteligente con herramientas de IA para crear arte digital bajo demanda (Function Calling).
-*   **🛡️ Arquitectura SOLID:** Diseño desacoplado utilizando el patrón *Strategy* y *Adapter*, facilitando el cambio de proveedores (IA, Imágenes, WhatsApp) sin romper la lógica central.
-*   **👥 Gestión de Grupos:** El bot solo responde en grupos tras usar `init ia`, garantizando privacidad.
-*   **👁️ Contexto Completo:** El bot entiende mensajes citados (replies) y analiza imágenes adjuntas o citadas.
+*   **🧠 Identidad Evolutiva:** El bot utiliza la herramienta `evolucionar_identidad` para aprender de la charla y ajustar su tono y comportamiento en tiempo real.
+*   **🌲 Memoria Vectorial (Pinecone):** Gestión de "Lore" a largo plazo. Busca información semánticamente relevante antes de responder.
+*   **🔍 Extracción Proactiva:** Cada 200 mensajes, el bot analiza la conversación en segundo plano para extraer datos clave de los integrantes y guardarlos en Pinecone.
+*   **⚡ Arquitectura de Alto Rendimiento:** 
+    *   **Caché de Identidad:** Minimiza latencia y consumo de tokens.
+    *   **Procesamiento Asíncrono:** La extracción de lore no bloquea la respuesta de WhatsApp.
+    *   **Patrón Command/Managers:** Código ultra-organizado y fácil de mantener.
+*   **🖼️ Generación de Imágenes:** Integración con Pollinations para crear arte visual bajo demanda.
+*   **👁️ Visión Multimodal:** Entiende y analiza imágenes enviadas o citadas (replies).
 
 ## 🛠️ Arquitectura (SOLID)
 
-- **Core:** `WhatsAppProvider` (Abstracción de la librería de mensajería).
-- **Services:** Lógica aislada para IA (`OpenAIService`), Imágenes (`PollinationsService`) y Persistencia local.
-- **Handlers:** Orquestador central (`MessageHandler`) que recibe dependencias inyectadas.
+- **Handlers:** `MessageHandler` (Orquestador central).
+- **Managers:** `IdentityManager` (Personalidad y Caché) y `LoreManager` (Conocimiento y Pinecone).
+- **Services:** `OpenAIService`, `VectorService` (Embeddings), `PollinationsService`.
+- **Core:** `WhatsAppProvider` (Independencia de librería).
 
 ## 🚀 Instalación Rápida
 
-1.  **Clonar el repositorio:**
-    ```bash
-    git clone https://github.com/tu-usuario/capableia.git
-    cd capableia
-    ```
-
-2.  **Instalar dependencias:**
-    ```bash
-    npm install
-    ```
-
-3.  **Configurar variables de entorno (.env):**
+1.  **Instalar dependencias:** `npm install`
+2.  **Variables de Entorno (.env):**
     ```env
-    OPENAI_API_KEY=tu_clave_openai
+    OPENAI_API_KEY=...
+    PINECONE_API_KEY=...
+    PINECONE_INDEX=...
+    BOT_NAME="Yoshi"
+    BOT_INSTRUCTIONS="Prompt de Yoshi..."
     ```
+3.  **Iniciar:** `npm run dev`
 
-4.  **Iniciar el bot:**
-    ```bash
-    npm run dev
-    ```
-
-## ⌨️ Comandos en WhatsApp
-
-*   **Inicializar en Grupo:** Menciona al bot seguido de `init ia`.
-*   **Conversar:** Menciona al bot o responde a uno de sus mensajes.
-*   **Imágenes:** Pídele que dibuje o genere algo (ej: *"@bot dibuja un atardecer cyberpunk"*).
-
-## 📄 Licencia
-
-Este proyecto está bajo la licencia ISC.
+## 🧪 Validación
+- **Smoke Test:** `node smoke-test.js`
+- **Service Test:** `node test-services.js`
 
 ---
-Hecho con ❤️ para la comunidad de desarrolladores de IA.
+Hecho con ❤️ para la comunidad de desarrolladores de IA. 🚀🛸
