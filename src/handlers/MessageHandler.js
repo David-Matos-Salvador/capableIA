@@ -13,7 +13,7 @@ class MessageHandler {
         this.initializedGroups = persistence.load('groups');
         this.groupHistory = persistence.load('history');
         this.groupSummaries = persistence.load('summaries');
-        console.log('📦 [MessageHandler] Reiniciado con arquitectura de Managers y Caché.');
+        console.log('📦 [MessageHandler] Inicializado con arquitectura de Managers y Caché.');
     }
 
     async handle(msg, whatsapp) {
@@ -26,56 +26,70 @@ class MessageHandler {
 
             const chat = await msg.getChat();
             const contact = await msg.getContact();
+            const mentions = await msg.getMentions();
             const chatId = chat.id._serialized;
 
-            console.log(`🔍 [MessageHandler] Chat ID: ${chatId}, ¿Es grupo?: ${chat.isGroup}`);
             if (!chat.isGroup) {
                 console.log('⚠️ [MessageHandler] Ignorado: No es grupo.');
                 return;
             }
 
-            // Lógica de Menciones
             const info = whatsapp.info;
             const botNumber = info.wid.user;
-            const mentions = await msg.getMentions();
             const isMentionedOfficially = mentions.some(c => c.id._serialized === info.wid._serialized);
             const isMentionedInText = msg.body.includes(botNumber);
             
-            console.log(`🔔 [MessageHandler] ¿Mencionado?: ${isMentionedOfficially || isMentionedInText}`);
-
-            // Inicialización
             const bodyLower = msg.body.toLowerCase();
             if (bodyLower.includes(INIT_PHRASE)) {
-                console.log('🚀 [MessageHandler] Comando init detectado.');
                 return this._initializeGroup(chatId, msg, whatsapp);
             }
 
             const isReplyToMe = msg.hasQuotedMsg ? (await msg.getQuotedMessage()).fromMe : false;
-            console.log(`💬 [MessageHandler] ¿Respuesta al bot?: ${isReplyToMe}`);
 
             if (this.initializedGroups.has(chatId)) {
-                this._recordMessage(chatId, contact, msg.body);
+                // MEJORA: Guardar mensaje en historial (incluyendo detección de imagen)
+                await this._recordMessage(chatId, contact, msg);
+
                 if (isMentionedOfficially || isMentionedInText || isReplyToMe) {
-                    console.log('🤖 [MessageHandler] Condición cumplida. Llamando a _respond...');
                     await this._respond(chat, msg, chatId, whatsapp);
-                } else {
-                    console.log('💤 [MessageHandler] Grupo inicializado pero sin mención directa.');
                 }
-            } else {
-                console.log('ℹ️ [MessageHandler] Grupo no inicializado.');
             }
         } catch (error) {
             console.error('❌ [MessageHandler] Error en handle:', error);
         }
     }
 
-    _recordMessage(chatId, contact, content) {
-        console.log(`💾 [MessageHandler] Guardando mensaje de ${contact.pushname}`);
+    async _recordMessage(chatId, contact, msg) {
         if (!this.groupHistory[chatId]) this.groupHistory[chatId] = [];
-        this.groupHistory[chatId].push({ role: contact.pushname || contact.number, content: content, timestamp: Date.now() });
+        
+        let content = msg.body;
+
+        // Si el mensaje es una imagen, extraemos palabras clave para el historial
+        if (msg.hasMedia && !msg.body) {
+            try {
+                console.log(`📸 [MessageHandler] Imagen detectada de ${contact.pushname}. Extrayendo tags...`);
+                const media = await msg.downloadMedia();
+                if (media.mimetype.startsWith('image/')) {
+                    const tags = await this.ai.getImageTags({
+                        data: media.data,
+                        mimetype: media.mimetype
+                    });
+                    content = `[Imagen: ${tags}]`;
+                }
+            } catch (e) {
+                content = `[Imagen]`;
+            }
+        } else if (msg.hasMedia && msg.body) {
+            content = `[Imagen] ${msg.body}`;
+        }
+
+        this.groupHistory[chatId].push({ 
+            role: contact.pushname || contact.number, 
+            content: content, 
+            timestamp: Date.now() 
+        });
         
         if (this.groupHistory[chatId].length >= MAX_HISTORY_LIMIT) {
-            // MEJORA 1: Extracción asíncrona en segundo plano (No bloquea el chat)
             loreManager.extractProactiveLore(chatId, [...this.groupHistory[chatId]], this.ai);
             this.groupHistory[chatId] = this.groupHistory[chatId].slice(-15);
         }
@@ -87,23 +101,27 @@ class MessageHandler {
         if (!this.initializedGroups.has(chatId)) {
             this.initializedGroups.add(chatId);
             persistence.save('groups', this.initializedGroups);
-            await whatsapp.sendText(chatId, '✅ Bot CapableIA activado con Identidad Evolutiva.');
-            console.log(`✅ [MessageHandler] Grupo ${chatId} inicializado.`);
+            await whatsapp.sendText(chatId, '✅ Bot CapableIA activado.');
+        }
+    }
+
+    async _sendHumanLike(chatId, text, whatsapp) {
+        const parts = text.split('\n').filter(p => p.trim().length > 0);
+        for (const part of parts) {
+            const delay = Math.floor(Math.random() * 1000) + 500;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            await whatsapp.sendText(chatId, part.trim());
         }
     }
 
     async _respond(chat, msg, chatId, whatsapp) {
-        console.log('🤖 [MessageHandler] Entrando en _respond...');
         try {
             await chat.sendStateTyping();
 
             let userPrompt = msg.body.replace(/@\d+/g, '').trim();
-            console.log('📝 [MessageHandler] Prompt enviado:', userPrompt);
-
             let quotedContext = "";
             let mediaInput = null;
 
-            // Manejo de Multimedia y Quotes
             if (msg.hasQuotedMsg) {
                 const q = await msg.getQuotedMessage();
                 quotedContext = `MENSAJE CITADO: "${q.body}"`;
@@ -122,7 +140,6 @@ class MessageHandler {
                 }
             }
 
-            // MEJORA 2: Uso de CACHÉ para identidad y búsqueda de LORE
             const loreContext = await loreManager.searchRelevantLore(userPrompt);
             const selfIdentity = await identityManager.getIdentity();
 
@@ -141,40 +158,41 @@ ${quotedContext}
 
 USUARIO: ${userPrompt}
 
-Instrucción: Usa todo este contexto para responder. Si detectas información importante sobre un integrante (lore), usa guardar_lore. Si has aprendido algo sobre ti mismo o quieres evolucionar tu personalidad, usa evolucionar_identidad. Si piden una imagen, usa generar_imagen.`;
+Instrucción: Usa todo este contexto para responder. Si detectas lore, usa guardar_lore. Si has aprendido algo sobre ti mismo, usa evolucionar_identidad. Si piden una imagen, usa generar_imagen.`;
 
             const result = await this.ai.getResponse(finalPrompt, mediaInput, loreContext, selfIdentity);
-            console.log('📩 [MessageHandler] IA respondió.');
             
             const candidate = result.candidates?.[0];
             const parts = candidate?.content?.parts || [];
             const functionCall = parts.find(p => p.functionCall)?.functionCall;
 
             if (functionCall) {
-                // Herramienta: Guardar Lore
                 if (functionCall.name === "guardar_lore") {
                     const { dato, integrante } = functionCall.args;
                     await loreManager.saveManualLore(integrante, dato);
-                    console.log(`📝 [Lore] Dato guardado para ${integrante}`);
+                    const text = parts.find(p => p.text)?.text;
+                    if (text) await whatsapp.sendText(chatId, text);
                 } 
-                // Herramienta: Evolucionar Identidad
                 else if (functionCall.name === "evolucionar_identidad") {
                     const { leccion } = functionCall.args;
-                    await identityManager.evolve(leccion); // Esto limpia el caché automáticamente
+                    await identityManager.evolve(leccion);
+                    const text = parts.find(p => p.text)?.text;
+                    if (text) await whatsapp.sendText(chatId, text);
                 }
-                // Herramienta: Generar Imagen
                 else if (functionCall.name === "generar_imagen") {
-                    const imageUrl = await this.imageGenerator.generateImageUrl(functionCall.args.prompt);
-                    const media = await MessageMedia.fromUrl(imageUrl, { unsafeMime: true });
-                    await whatsapp.sendImage(chatId, media, `🎨 ${functionCall.args.prompt}`);
+                    try {
+                        const media = await this.imageGenerator.generateImageUrl(functionCall.args.prompt);
+                        await whatsapp.sendImage(chatId, media, `🎨 ${functionCall.args.prompt}`);
+                    } catch (e) {
+                        console.error("❌ Error enviando imagen:", e.message);
+                        await whatsapp.sendText(chatId, "No pude enviarte la imagen, causa. Intenta de nuevo.");
+                    }
                 }
-                
-                // Enviar texto acompañante si existe
-                const text = parts.find(p => p.text)?.text;
-                if (text) await whatsapp.sendText(chatId, text);
             } else {
                 const text = parts.find(p => p.text)?.text;
-                if (text) await whatsapp.sendText(chatId, text);
+                if (text) {
+                    await this._sendHumanLike(chatId, text, whatsapp);
+                }
             }
             await chat.clearState();
         } catch (error) {
