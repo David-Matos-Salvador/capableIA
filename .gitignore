@@ -36,5 +36,3 @@ Thumbs.db
 
 # Archivos Temporales de Gemini CLI
 .gemini/tmp/
-
-*.json

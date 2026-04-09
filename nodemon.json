@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "*.json",
+    ".wwebjs_auth/*",
+    ".wwebjs_cache/*",
+    ".gemini/*"
+  ],
+  "ext": "js,env"
+}
