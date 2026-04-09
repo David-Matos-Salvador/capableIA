@@ -8,7 +8,7 @@ Nacido para superar las limitaciones de las IAs nativas, CapableIA es una entida
 ## ✨ Características Clave
 *   **🤖 Personalidad Evolutiva (Yoshi):** Configurable vía `.env` (`BOT_INSTRUCTIONS`). Adaptable en tono (chacotero/experto), concisión y jerga.
 *   **🌲 Memoria Vectorial (Pinecone):**
-    *   **Lore Grupal:** Extracción proactiva de datos relevantes (últimos 200 mensajes).
+    *   **Lore Grupal:** Extracción proactiva de datos relevantes (últimos 200 (default) mensajes).
     *   **Identidad Propia:** Yoshi aprende de la charla y guarda lecciones sobre sí mismo en Pinecone.
 *   **💬 Estilo de Conversación Dual:** Responde de forma concisa y chacotera en chats casuales, o detallada y profesional en temas técnicos/históricos.
 *   **🖼️ Generación y Análisis de Imágenes:** Crea imágenes (Pollinations) y extrae tags de imágenes enviadas/citadas.
