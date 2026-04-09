@@ -1,4 +1,4 @@
-# CapableIA - Bot de WhatsApp Evolutivo y Multimodal 🤖🚀🇵🇪
+# CapableIA - Bot de WhatsApp Evolutivo y Multimodal 🤖🚀
 
 **CapableIA** (Alias: **Yoshi**) es un bot de WhatsApp de nivel profesional construido sobre Node.js con arquitectura **SOLID**. Utiliza **OpenAI (GPT-4o)** para conversaciones inteligentes y **Pinecone** para memoria a largo plazo, ofreciendo una experiencia que evoluciona, recuerda y analiza el lore del grupo.
 
