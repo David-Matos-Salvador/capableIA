@@ -3,63 +3,77 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const MessageHandler = require('./src/handlers/MessageHandler');
 const WhatsAppProvider = require('./src/core/WhatsAppProvider');
+const { runSetup } = require('./src/config/setup');
+const { validateEnvironment } = require('./src/config/validator');
 
-// Servicios
-const { selectAIProvider } = require('./src/services/providerSelector');
-const aiService = selectAIProvider();
-const imageService = require('./src/services/PollinationsService'); 
-
-// Inicializamos el cliente
-const waClient = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: { 
-        headless: true, 
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-extensions',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
-            '--disable-gpu'
-        ]
+async function bootstrap() {
+    // Setup wizard (solo en TTY)
+    if (process.stdin.isTTY) {
+        await runSetup();
+        // Recargar .env por si el wizard escribió nuevas variables
+        require('dotenv').config({ override: true });
     }
-});
 
-const whatsapp = new WhatsAppProvider(waClient);
-const messageHandler = new MessageHandler(aiService, imageService);
+    // Validación de entorno
+    validateEnvironment();
 
-waClient.on('qr', (qr) => {
-    console.log('--- ESCANEA ESTE CÓDIGO QR ---');
-    qrcode.generate(qr, { small: true });
-});
+    // Servicios
+    const { selectAIProvider } = require('./src/services/providerSelector');
+    const aiService = selectAIProvider();
+    const imageService = require('./src/services/PollinationsService');
 
-waClient.on('ready', () => {
-    console.log('¡Bot CapableIA 100% Desacoplado Listo!');
-});
+    const waClient = new Client({
+        authStrategy: new LocalAuth(),
+        puppeteer: {
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-extensions',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu'
+            ]
+        }
+    });
 
-waClient.on('message', async (msg) => {
-    await messageHandler.handle(msg, whatsapp);
-});
+    const whatsapp = new WhatsAppProvider(waClient);
+    const messageHandler = new MessageHandler(aiService, imageService);
 
-// Manejo de cierre limpio para evitar ProtocolError
-const gracefulShutdown = async (signal) => {
-    console.log(`\n🛑 Recibido ${signal}. Cerrando bot de forma segura...`);
-    try {
-        await waClient.destroy();
-        console.log('✅ Navegador y sesión cerrados correctamente.');
-    } catch (err) {
-        console.error('❌ Error al cerrar el bot:', err);
-    }
-    process.exit(0);
-};
+    waClient.on('qr', (qr) => {
+        console.log('--- ESCANEA ESTE CÓDIGO QR ---');
+        qrcode.generate(qr, { small: true });
+    });
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    waClient.on('ready', () => {
+        console.log('¡Bot CapableIA Listo!');
+    });
 
-waClient.on('auth_failure', (msg) => console.error('❌ Error de autenticación:', msg));
-waClient.on('disconnected', (reason) => console.log('⚠️ El bot fue desconectado:', reason));
+    waClient.on('message', async (msg) => {
+        await messageHandler.handle(msg, whatsapp);
+    });
 
-waClient.initialize();
+    const gracefulShutdown = async (signal) => {
+        console.log(`\n🛑 Recibido ${signal}. Cerrando bot de forma segura...`);
+        try {
+            await waClient.destroy();
+            console.log('✅ Navegador y sesión cerrados correctamente.');
+        } catch (err) {
+            console.error('❌ Error al cerrar el bot:', err);
+        }
+        process.exit(0);
+    };
+
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+    waClient.on('auth_failure', (msg) => console.error('❌ Error de autenticación:', msg));
+    waClient.on('disconnected', (reason) => console.log('⚠️ El bot fue desconectado:', reason));
+
+    waClient.initialize();
+}
+
+bootstrap();

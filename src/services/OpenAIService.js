@@ -51,16 +51,19 @@ class OpenAIService {
                 model: 'gpt-4o-mini',
                 messages: [{
                     role: 'system',
-                    content: `Analiza el mensaje y devuelve un JSON:
+                    content: `Analiza el mensaje y devuelve SOLO un JSON:
                     {
                         "intent": "chacota" | "sabio" | "imagen",
-                        "temperature": 0.0 a 1.0,
-                        "max_tokens": 50 a 800,
+                        "temperature": float,
+                        "max_tokens": int,
                         "force_tool": boolean,
                         "style_guide": "Instrucción de estilo"
                     }
-                    REGLAS:
-                    - Si el usuario da una orden directa de formato (ej: "responde solo OK"), usa intent="sabio", temp=0.0 y style_guide="Cumple EXACTAMENTE lo que pidió el usuario".
+                    REGLAS POR INTENT:
+                    - chacota: broma simple, temperature 0.7-1.0, max_tokens 30-120
+                    - sabio: respuesta útil pero directa, temperature 0.3-0.5, max_tokens 60-200
+                    - imagen: temperature 0.3, max_tokens 60, force_tool=true
+                    - Si el usuario da una orden directa de formato (ej: "responde solo OK"), usa intent="sabio", temp=0.0, max_tokens=30 y style_guide="Cumple EXACTAMENTE lo que pidió el usuario".
                     - Si pide dibujo: intent="imagen", force_tool=true.`
                 }, { role: 'user', content: prompt }],
                 response_format: { type: "json_object" },
@@ -87,7 +90,16 @@ ${personality.instructions}
 GUÍA DE ESTILO ACTUAL: ${config.style_guide}
 IDENTIDAD: ${selfIdentity || "N/A"}
 LORE: ${loreContext || "N/A"}
-REGLA: Si piden imagen, DEBES usar generar_imagen.`.trim();
+IDIOMA: Responde en ${personality.language}. Si el usuario escribe en otro idioma, responde en ese mismo idioma.
+REGLA: Si piden imagen, DEBES usar generar_imagen.
+
+REGLAS DE HUMANIZACIÓN:
+- Responde como un amigo en WhatsApp, no como un asistente.
+- Máximo 1-2 oraciones. Corto y punzante.
+- NO uses listas, ni enumeraciones, ni viñetas.
+- NO te disculpes ni expliques lo que vas a hacer.
+- Suena natural: muletillas, jerga, a veces sin tildes.
+- Si es una broma, que parezca espontánea, no ensayada.`.trim();
 
             const response = await this.client.chat.completions.create({
                 model: 'gpt-4o',

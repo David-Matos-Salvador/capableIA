@@ -148,17 +148,16 @@ class MessageHandler {
             const recentMessages = history.slice(-15).map(m => `${m.role}: ${m.content}`).join('\n');
 
             const finalPrompt = `
-CONTEXTO DE LA CONVERSACIÓN:
+Contexto de la conversación hasta ahora:
 ${currentSummary}
 
-ÚLTIMOS MENSAJES:
+Últimos mensajes del grupo:
 ${recentMessages}
+${quotedContext ? '\n' + quotedContext : ''}
 
-${quotedContext}
+Ahora responde a: "${userPrompt}"
 
-USUARIO: ${userPrompt}
-
-Instrucción: Usa todo este contexto para responder. Si detectas lore, usa guardar_lore. Si has aprendido algo sobre ti mismo, usa evolucionar_identidad. Si piden una imagen, usa generar_imagen.`;
+(Internamente puedes usar guardar_lore, evolucionar_identidad o generar_imagen si aplica. Pero tu respuesta debe sonar natural, como si hablaras en el grupo.)`;
 
             const result = await this.ai.getResponse(finalPrompt, mediaInput, loreContext, selfIdentity);
             
