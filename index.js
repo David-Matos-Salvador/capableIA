@@ -5,7 +5,8 @@ const MessageHandler = require('./src/handlers/MessageHandler');
 const WhatsAppProvider = require('./src/core/WhatsAppProvider');
 
 // Servicios
-const aiService = require('./src/services/OpenAIService'); 
+const { selectAIProvider } = require('./src/services/providerSelector');
+const aiService = selectAIProvider();
 const imageService = require('./src/services/PollinationsService'); 
 
 // Inicializamos el cliente

@@ -3,15 +3,29 @@ const OpenAI = require('openai');
 
 class VectorService {
     constructor() {
-        this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         this.pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
         this.indexName = process.env.PINECONE_INDEX || 'capableia-lore';
+
+        if (process.env.OPENAI_API_KEY) {
+            this.embeddingClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            this.embeddingModel = "text-embedding-3-small";
+            console.log('🔵 [VectorService] Embeddings: OpenAI');
+        } else if (process.env.DEEPSEEK_API_KEY) {
+            this.embeddingClient = new OpenAI({
+                apiKey: process.env.DEEPSEEK_API_KEY,
+                baseURL: 'https://api.deepseek.com'
+            });
+            this.embeddingModel = "deepseek-embedding";
+            console.log('🟢 [VectorService] Embeddings: DeepSeek');
+        } else {
+            console.error('❌ [VectorService] No hay API key para embeddings. Define OPENAI_API_KEY o DEEPSEEK_API_KEY.');
+        }
     }
 
     async _getEmbedding(text) {
         if (!text) throw new Error("Texto vacío para embedding");
-        const response = await this.openai.embeddings.create({
-            model: "text-embedding-3-small",
+        const response = await this.embeddingClient.embeddings.create({
+            model: this.embeddingModel,
             input: text,
             encoding_format: "float",
         });
