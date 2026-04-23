@@ -1,6 +1,6 @@
 const PROVIDERS = [
-  { envKey: 'OPENAI_API_KEY', file: './OpenAIService', name: 'OpenAI', icon: '🔵' },
   { envKey: 'DEEPSEEK_API_KEY', file: './DeepSeekService', name: 'DeepSeek', icon: '🟢' },
+  { envKey: 'OPENAI_API_KEY', file: './OpenAIService', name: 'OpenAI', icon: '🔵' },
   { envKey: 'GEMINI_API_KEY', file: './GeminiService', name: 'Gemini', icon: '🟡' },
 ];
 

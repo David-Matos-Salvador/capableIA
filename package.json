@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "clean:session": "rm -rf .wwebjs_auth/session && echo '✅ Sesión de WhatsApp borrada'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

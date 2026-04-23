@@ -27,6 +27,48 @@ Nacido para superar las limitaciones de las IAs nativas, CapableIA es una entida
     ```
 4.  **Iniciar:** `npm run dev`
 
+## 🎮 Comandos
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm start` | Inicia el bot en modo producción |
+| `npm run dev` | Inicia con **nodemon** (recarga automática al guardar cambios) |
+| `npm run clean:session` | **Borra la sesión de WhatsApp** - Útil cuando no aparece el QR o querés vincular un número nuevo |
+
+### ¿Cuándo usar `clean:session`?
+
+- **No aparece el QR** al iniciar el bot
+- Querés **vincular un número de WhatsApp diferente**
+- La sesión actual **expiró o fue cerrada** desde el celular
+
+Después de borrar la sesión, al reiniciar (`npm start`) se mostrará el código QR para escanear.
+
+## 📱 Cómo usar el Bot en WhatsApp
+
+### Activar el bot en un grupo
+1. Agrega el número del bot a un grupo de WhatsApp
+2. Escribe **`init ia`** (en cualquier mensaje, puede ser mezclado con otro texto)
+3. El bot responderá: `✅ Bot CapableIA activado.`
+
+### Interactuar con el bot
+Una vez activado, el bot responde cuando:
+- **Lo mencionas** con `@nombre-del-bot`
+- **Respondes** a uno de sus mensajes
+- **Incluyes su número** en el texto del mensaje
+
+### Funciones disponibles
+El bot puede hacer estas acciones automáticamente según la conversación:
+
+| Función | Descripción | Ejemplo de uso |
+|---------|-------------|----------------|
+| 🧠 **Responder** | Responde con su personalidad (Yoshi) | Cualquier mensaje mencionándolo |
+| 🎨 **Generar imágenes** | Crea imágenes con IA | *"Yoshi, dibújame un gato espacial"* |
+| 🖼️ **Analizar imágenes** | Describe imágenes que le envíes o cites | Envía una foto mencionándolo o cita una imagen |
+| 💾 **Guardar lore** | Aprende y recuerda datos del grupo | Ocurre automáticamente en conversaciones |
+| 🔄 **Evolucionar** | Mejora su personalidad con el tiempo | Ocurre automáticamente |
+
+> 💡 **Tip:** El bot analiza automáticamente los últimos 200 mensajes del grupo para aprender el "lore" (historia, inside jokes, datos importantes) y los usa en sus respuestas.
+
 ## 🧪 Validación
 - **Smoke Test:** `node smoke-test.js` (Verifica configuración, IA, Pinecone, herramientas).
 

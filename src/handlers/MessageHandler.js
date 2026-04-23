@@ -106,11 +106,38 @@ class MessageHandler {
     }
 
     async _sendHumanLike(chatId, text, whatsapp) {
-        const parts = text.split('\n').filter(p => p.trim().length > 0);
+        // Dividir en "pensamientos" separados como un humano real
+        // Primero intentamos dividir por separadores explícitos ||
+        let parts = text.split(/\|\||\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+        
+        // Si no hay separadores, dividir por oraciones cortas (máx 8-12 palabras cada una)
+        if (parts.length === 1 && text.length > 40) {
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+            parts = sentences.map(s => s.trim()).filter(s => s.length > 0);
+        }
+        
+        // Si aún es muy largo, dividir en chunks de máx 50 caracteres
+        if (parts.length === 1 && parts[0].length > 60) {
+            const words = parts[0].split(' ');
+            const chunks = [];
+            let current = '';
+            for (const word of words) {
+                if ((current + ' ' + word).trim().length > 50) {
+                    if (current) chunks.push(current.trim());
+                    current = word;
+                } else {
+                    current = current ? current + ' ' + word : word;
+                }
+            }
+            if (current) chunks.push(current.trim());
+            parts = chunks;
+        }
+
         for (const part of parts) {
-            const delay = Math.floor(Math.random() * 1000) + 500;
+            // Delay tipo humano: 1-3 segundos entre mensajes (está "escribiendo")
+            const delay = Math.floor(Math.random() * 2000) + 1000;
             await new Promise(resolve => setTimeout(resolve, delay));
-            await whatsapp.sendText(chatId, part.trim());
+            await whatsapp.sendText(chatId, part);
         }
     }
 
